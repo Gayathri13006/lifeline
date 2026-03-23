@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Donor Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            /* Added background image for donor portal */
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+            background-size: contain; /* Fills the height */
+            background-color: #fcebeb; /* Slightly warmer blush */
+        }
+
+        /* Also semi-transparent container for readability */
+        #alerts, #registration {
+            background-color: #ffffffd0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .request-card { border: 2px solid #d9534f; padding: 15px; border-radius: 8px; margin-top: 10px; background: #fff5f5; display: flex; justify-content: space-between; align-items: center; }
+        button { padding: 10px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        button.online-btn { background-color: #0275d8; color: white; border: none; width: 100%; margin-top: 10px; }
+        button.accept-btn { background: #5cb85c; color: white; border: none; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        .status-badge { color: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2> Donor Portal</h2>
+    <div id="registration">
+        <label>Enter Your Details to Go Online:</label>
+        <input type="text" id="donorName" placeholder="Full Name">
+        <select id="bloodGroup">
+            <option value="O_POSITIVE">O+</option>
+            <option value="O_NEGATIVE">O-</option>
+            <option value="A_POSITIVE">A+</option>
+            <option value="A_NEGATIVE">A-</option>
+            <option value="B_POSITIVE">B+</option>
+            <option value="B_NEGATIVE">B-</option>
+            <option value="AB_POSITIVE">AB+</option>
+            <option value="AB_NEGATIVE">AB-</option>
+        </select>
+        <button class="online-btn" onclick="register()">GO ONLINE</button>
+    </div>
+
+    <div id="alerts" style="display:none; margin-top: 20px;">
+        <h3>Live Emergency Requests:</h3>
+        <div id="requestList">Searching for nearby emergencies...</div>
+    </div>
+</div>
+
+<script>
+    let currentDonorName = "";
+
+    function register() {
+        currentDonorName = document.getElementById('donorName').value;
+        if (!currentDonorName) {
+            alert("Please enter your name first!");
+            return;
+        }
+        document.getElementById('registration').style.display = "none";
+        document.getElementById('alerts').style.display = "block";
+
+        alert("Success! You are now online and visible to hospitals.");
+        checkRequests(); // Check immediately
+        setInterval(checkRequests, 5000); // Then check every 5 seconds
+    }
+
+    function checkRequests() {
+        // Make sure this matches the @GetMapping in your Java file exactly
+        fetch('http://localhost:8080/api/requests')
+            .then(res => res.json())
+            .then(requests => {
+                const list = document.getElementById('requestList');
+                list.innerHTML = "";
+
+                // Only show requests that haven't been accepted yet
+                const openRequests = requests.filter(r => r.status === 'OPEN');
+
+                if (openRequests.length === 0) {
+                    list.innerHTML = "No active emergencies found.";
+                    return;
+                }
+
+                openRequests.forEach(req => {
+                    list.innerHTML += `
+                    <div class="request-card">
+                        <p><strong>EMERGENCY:</strong> ${req.bloodGroup} needed!</p>
+                        <button class="accept-btn" onclick="acceptRequest(${req.id})">ACCEPT & GO</button>
+                    </div>`;
+                });
+            })
+            .catch(err => console.error("Error loading requests:", err));
+    }
+    function acceptRequest(id) {
+        // Sending the PUT request to update the database
+        fetch(`http://localhost:8080/api/request/accept/${id}?donorName=${encodeURIComponent(currentDonorName)}`, {
+            method: 'PUT'
+        })
+            .then(res => {
+                if (res.ok) {
+                    alert("Thank you, " + currentDonorName + "! The hospital has been notified that you are on your way.");
+                    checkRequests(); // Refresh the list immediately
+                } else {
+                    alert("This request might have already been accepted.");
+                }
+            })
+            .catch(err => alert("Connection error. Is the backend running?"));
+    }
+</script>
+</body>
+</html>

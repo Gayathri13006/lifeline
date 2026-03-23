@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Emergency Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            /* Added background images */
+            background-image: url('image3.jfif'), url('image4.jfif');
+            background-repeat: no-repeat, no-repeat;
+            background-position: top 50px right 50px, bottom 50px left 50px;
+            background-attachment: fixed;
+            background-size: 200px, 150px; /* Adjust size to taste */
+            background-color: #f8f1f1; /* Light blush background color */
+        }
+
+        /* We also need to add a subtle shadow to the container for readability */
+        .container {
+            max-width: 400px;
+            margin: auto;
+            border: 1px solid #ecc2c1;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #ffffffd0; /* Semi-transparent container */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* Soft shadow */
+        }
+
+        select, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 5px; }
+        button { background-color: #d9534f; color: white; border: none; cursor: pointer; font-weight: bold; }
+        #status { margin-top: 15px; font-weight: bold; color: #d9534f; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-open { color: #d9534f; font-weight: bold; }
+        .status-accepted { color: #5cb85c; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>LIFE LINE</h1>
+    <h2>🏥 Hospital Emergency Dashboard</h2>
+
+    <div style="max-width: 400px; margin: auto;">
+        <label for="bg">Select Required Blood Group:</label>
+        <select id="bg">
+            <option value="O_POSITIVE">O+</option>
+            <option value="O_NEGATIVE">O-</option>
+            <option value="A_POSITIVE">A+</option>
+            <option value="A_NEGATIVE">A-</option>
+            <option value="B_POSITIVE">B+</option>
+            <option value="B_NEGATIVE">B-</option>
+            <option value="AB_POSITIVE">AB+</option>
+            <option value="AB_NEGATIVE">AB-</option>
+        </select>
+        <button onclick="sendAlert()">🚨 SEND EMERGENCY ALERT</button>
+        <div id="status"></div>
+    </div>
+
+    <h3>Live Alert Status</h3>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Blood Group</th>
+            <th>Status</th>
+            <th>Donor Name</th>
+        </tr>
+        </thead>
+        <tbody id="statusTableBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function sendAlert() {
+        const bloodGroup = document.getElementById('bg').value;
+        const statusDiv = document.getElementById('status');
+
+        fetch('http://localhost:8080/api/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bloodGroup: bloodGroup, status: 'OPEN' })
+        })
+            .then(response => {
+                if(response.ok) {
+                    statusDiv.innerText = `SUCCESS: Alert sent for ${bloodGroup}!`;
+                    loadStatus(); // Refresh table immediately
+                }
+            });
+    }
+
+    function loadStatus() {
+        fetch('http://localhost:8080/api/requests')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('statusTableBody');
+                tbody.innerHTML = "";
+                data.reverse().forEach(req => { // Show newest first
+                    const row = `<tr>
+                        <td>${req.id}</td>
+                        <td>${req.bloodGroup}</td>
+                        <td class="${req.status === 'OPEN' ? 'status-open' : 'status-accepted'}">${req.status}</td>
+                        <td>${req.acceptedBy ? req.acceptedBy : '---'}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            });
+    }
+
+    // Refresh the table every 5 seconds to see donor acceptances
+    setInterval(loadStatus, 5000);
+    window.onload = loadStatus;
+</script>
+</body>
+</html>
